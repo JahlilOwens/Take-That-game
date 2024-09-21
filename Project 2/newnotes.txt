@@ -1,0 +1,886 @@
+//package takethatgui;
+
+/*
+ * Take That!
+ * by Scott Weiss
+ * 
+ * This class does most of the work. It displays the labels and grid buttons.
+ * It changes the grid state after each move.
+ * 
+ * It also manages the computer players. You will be rewriting the method
+ * makeComputerChoice so it intelligently picks a move based on the current game state.
+ * 
+ */
+import javax.swing.*;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Random;
+
+public class Board
+    extends JPanel {
+  private Player rowP; // the two players
+  private Player colP;
+  private boolean isRowsTurn; // whose turn is it
+  private int currentRow, currentCol; // row and column of last move
+  private JLabel[] colLabels; // the labels that indicate which column to play in
+  private JLabel[] rowLabels; // the labels to indicate the row to play in
+  private Cell[][] cells; // the grid of numbers
+  private JLabel messageLabel; // label for turn information, winner
+  private int sizeB;
+  private int move = 0;
+  private float maxValue;
+  private float minValue;
+  private boolean ABbool;
+  private int p1;
+  private int p2;
+  private int p1LS;
+  private int p2LS;
+  private float[] VM = new float[2];
+  private float[] VM2 = new float[2];
+  private Random rand = new Random();
+  private Board copyboard; 
+  public Board(int size, Player rp, Player cp, int min, int max, Random rand) {
+    // Constructor
+    // size is grid size (assume square)
+    sizeB=size;
+    // rp & cp are players
+    // min and max is range of possible numbers for a square
+    // rand is random number generator
+    rowP = rp; // remember player information
+    colP = cp;
+    int turn = rand.nextInt()%2;
+    isRowsTurn = turn == 0; // determine who moves first
+    rowLabels = new JLabel[size]; // make arrays of labels for row/column headings
+    colLabels = new JLabel[size];
+    cells = new Cell[size][size]; // make 2D array of Cells
+    this.setLayout(new GridLayout(size+2, size+1)); // set layout for Board
+    // one extra row to accommodate winner message
+    // extra row and column for labels
+    this.add(new JLabel("",JLabel.CENTER)); // blank label to line things up nicely
+    for (int i=0; i < size; i++) // add column headers across the top
+    {
+      colLabels[i] = new JLabel(""+i,JLabel.CENTER); // label with column number
+      colLabels[i].setForeground(Color.RED); // make it large and red
+      colLabels[i].setFont(new Font(null, Font.BOLD, 20));
+      colLabels[i].setVisible(false); // no numbers shown yet
+      this.add(colLabels[i]);
+    }
+    for (int i=0; i < size; i++)
+    {
+      // make label for row first
+      rowLabels[i] = new JLabel(""+i, JLabel.CENTER);
+      rowLabels[i].setForeground(Color.RED);
+      rowLabels[i].setFont(new Font(null, Font.BOLD, 20));
+      rowLabels[i].setVisible(false);
+      this.add(rowLabels[i]);
+      // then make cells in that row
+      for (int j=0; j < size; j++)
+      {
+        // create a new Cell object
+        Cell tempCell = new Cell(i,j,this, min, max, rand);
+        cells[i][j] = tempCell;
+        this.add(tempCell); // add to panel
+      }
+    }
+    if (isRowsTurn) // is it row player's turn to start?
+    {
+      // pick a random row
+      currentRow = rand.nextInt(size);
+      // make that row's label visible
+      rowLabels[currentRow].setVisible(true);
+    }
+    else // do similar for columns
+    {
+      currentCol = rand.nextInt(size);
+      colLabels[currentCol].setVisible(true);
+    }
+    // put text in the message label
+    messageLabel = new JLabel("Time to play Take That");
+    this.add(messageLabel);
+  }
+  
+  public void nextTurn()
+  // This method sets up the next player's turn
+  {
+    if (!gameOver()) // if there are still turns to play
+    {
+      if (isRowsTurn) // tell appropriate player to take its turn
+        rowP.takeTurn();
+      else
+        colP.takeTurn();
+    }
+  }
+
+  public void makeComputerMove()
+  // This performs the move for the computer player
+  // After determining what the move should be, it executes that move on the board
+  {
+    if (isRowsTurn) // is it row player's turn?
+    {
+      // tell user the computer player is thinking
+       messageLabel.setText(rowP.getName()+" thinking");
+       // determine the player's move
+       int colChoice = makeComputerChoice(currentRow);
+       // attempt to make the move
+       if (makeMove(currentRow, colChoice, 
+           cells[currentRow][colChoice].getValue()))
+         cells[currentRow][colChoice].select(); // if legal move, change the grid
+    }
+    else // similar for column player
+    {
+       messageLabel.setText(colP.getName()+" thinking");
+       int rowChoice = makeComputerChoice(currentCol);
+       if (makeMove(rowChoice, currentCol, 
+           cells[rowChoice][currentCol].getValue()))
+         cells[rowChoice][currentCol].select();
+      
+    }
+    nextTurn(); // have the next player go
+  }
+  public Board board2(Board board){
+    Board board2Board = new Board(sizeB, rowP, colP, 10, 10, rand);
+    for(int i=0; i<sizeB;i++){
+      for(int j=0;j<sizeB;j++){
+        board2Board.cells[i][j].setValue(board.cells[i][j].getValue());
+        if(board.cells[i][j].isSelected()){
+          board2Board.cells[i][j].select();
+        }
+      }
+    }
+    return board2Board;
+  }
+  
+  public int makeComputerChoice(int RorC)
+  // This method determines the square the computer player will move to
+  // It returns the row or column of the move as appropriate
+  // You will replace this code - right now, it makes a random legal move in the 
+  // appropriate row or column
+  {
+    int depth = 0;
+    Board copyBoard = new Board(sizeB, rowP, colP, 1, 1, rand);
+    ABbool=isRowsTurn; 
+    maxValue = Integer.MIN_VALUE;
+    minValue = Integer.MAX_VALUE;
+    ArrayList<int[]> Nodes = BoardNode.makeNode(RorC, isRowsTurn, sizeB);
+    copyboard = board2(copyBoard);
+    float[] RVM = new float[2];
+    RVM = maxValue(Nodes, depth, Float.MIN_VALUE, Float.MAX_VALUE); // this returns 0 and 1 everytime 
+    int move = Math.round(RVM[1]);
+    System.out.println(move);
+    return move;    
+  }
+  //Questions: do we generate new nodes everytime we pass to max/min value? what does the eval and teminal functions do? what perameters should the eval function take? 
+
+  public float[] maxValue(ArrayList<int[]> nodes, int depth, float alpha, float beta){
+    boolean terminal = isTerminal(nodes);
+    boolean cutoff = cutOff(depth);
+    int maxmove= 0;
+    if(terminal|cutoff){
+      depth+=1;
+      return eval();
+    }
+    for(int[] pair:nodes){
+      p1LS = cells[pair[0]][pair[1]].getValue();
+      p1 +=p1LS;
+      float[] minR = minValue(results(pair), depth-1, alpha, beta);//when we pass node, it resets the for loop and is constantly at the first cell. never moves to a second or third. 
+      copyboard.cells[pair[0]][pair[1]].unselected();
+      float value2 = minR[0];
+      if (value2>maxValue){
+        maxValue = value2;
+        VM[0]=maxValue;
+        if(ABbool){
+          maxmove=pair[1]; // equals 0 or whatever the column is i think
+          VM[1]=maxmove;
+          ABbool = !ABbool;
+        }
+        else{
+          maxmove=pair[0];  
+          VM[1]=maxmove;
+          ABbool = !ABbool;
+        }
+        alpha = Math.max(alpha,maxValue);
+      }
+      if(maxValue>=beta){
+        VM[0]=maxValue;
+        VM[1]=maxmove;
+        return VM;
+      }
+
+    }
+    return VM;
+  }
+
+
+  public float[] minValue(ArrayList<int[]> nodes, int depth, float alpha, float beta){
+    boolean terminal = isTerminal(nodes);
+    int minmove = 0;
+    boolean cutoff = cutOff(depth);
+    if(terminal|cutoff){
+      depth+=1;
+      return eval();
+    }
+    for(int[] pair1 : nodes){ // pair 1 gest stuck at 0, 3 or 3,0 depending on the turn
+      p2LS = cells[pair1[0]][pair1[1]].getValue();
+      p2 +=p2LS;
+      float[] maxR = maxValue(results(pair1), depth-1, alpha, beta);
+      copyboard.cells[pair1[0]][pair1[1]].unselected();
+      float value2=maxR[0];
+        //int move2 = maxR[1];
+      if(value2<minValue){
+        minValue=value2;
+        VM2[0]=minValue;
+        if(ABbool){
+          minmove=pair1[1];
+          VM2[1]=minmove;
+          ABbool = !ABbool;
+        }
+        else{
+          minmove=pair1[0];
+          VM2[1]=minmove;
+          ABbool = !ABbool;
+        }
+        beta = Math.min(beta,minValue);
+
+      }
+      if(minValue<=alpha){
+        VM2[0]=minValue;
+        VM2[1]=minmove;
+        return VM2;
+      }
+    }
+    return VM2;
+  }
+
+  public float[] eval(){
+    float[] pair = new float[2];
+    ArrayList<int[]> allNodes = BoardNode.makeAllNodes(sizeB);
+    ArrayList<int[]> sNodes = new ArrayList<>();
+    for(int pairs[]:allNodes){
+      if(copyboard.cells[pairs[0]][pairs[1]].isSelected()){
+        sNodes.add(pairs);
+      }
+    }
+    int odds = p1 + p2;
+    float p1odds = (float)p1/odds; // p1odds always become 0 no matter what
+    int nodesLeft = (allNodes.size()) - (sNodes.size());
+    if(nodesLeft == 0) {
+      pair[0] =p1odds;
+    }
+    else {
+      float idk = (float) nodesLeft/(allNodes.size());
+      float oddsOfW = p1odds*idk;
+      pair[0]=oddsOfW;
+    }
+    pair[1]=0;
+    if(ABbool){
+      p1-=p1LS;
+    }
+    else{
+      p2-=p2LS;
+    }
+    return pair;
+  }
+
+  public boolean isTerminal(ArrayList<int[]> nodes){
+    if(nodes.size()==0){
+      return true;
+    }else{
+      return false;
+    }
+  }
+
+  public boolean cutOff(int depth){
+    if(depth<-10){
+      return true;
+    }
+    else{
+      return false;
+    }
+  }
+
+  public ArrayList<int[]> results (int[] state){
+    //Board chilBoard = board2(chilBoard);
+    ABbool=!ABbool;
+    ArrayList<int[]> results=new ArrayList<>();
+    copyboard.cells[state[0]][state[1]].select();
+    if(ABbool){//see if ABbool is true
+      for(int q = 0; q<sizeB;q++){
+        int [] pair = new int[2];
+        pair[0]=state[0];
+        pair[1] = q;
+        boolean idk = copyboard.cells[pair[0]][pair[1]].isSelected();
+        if(idk){
+          continue;
+        }
+        else{
+          results.add(pair);
+        }
+      }
+    }else{
+      for(int q = 0; q<sizeB;q++){
+        int [] pair = new int[2];
+        pair[0]=q;
+        pair[1] = state[1];
+        boolean idk = copyboard.cells[pair[0]][pair[1]].isSelected();
+        if(idk){
+          continue;
+        }
+        else{
+          results.add(pair);
+        }
+    }
+  }
+    return results;
+  }
+
+  public boolean makeMove(int row, int col, int val)
+  // Execute move made by player
+  // row, col - coordinates of selected square
+  // val - number in the square
+  // returns true if move is legal, false otherwise
+  {
+    if (isRowsTurn && row==currentRow) // if row's turn and square is in current row
+    {
+      rowP.addToScore(val); // update player's score
+      rowLabels[currentRow].setVisible(false); // hide previous visible label
+      currentCol = col; // update column to that of selected square
+      colLabels[currentCol].setForeground(Color.RED); // display header for selected column
+      colLabels[currentCol].setVisible(true);
+      isRowsTurn = false; // switch to column player's turn
+      cells[row][col].select(); // select given square
+      if (gameOver()) // if the game is over
+      {
+        add(new JLabel(rowP.getWinner(colP))); // announce the winner
+      }
+      return true;
+    }
+    else if (!isRowsTurn && col==currentCol) // do analogous things for columns
+    {
+      colP.addToScore(val);
+      colLabels[currentCol].setVisible(false);
+      currentRow = row;
+      rowLabels[currentRow].setForeground(Color.RED);
+      rowLabels[currentRow].setVisible(true);
+      isRowsTurn = true;
+      cells[row][col].select();
+      if (gameOver())
+        add(new JLabel(rowP.getWinner(colP)));
+      return true;
+    }
+    else
+      return false;
+  }
+  public boolean gameOver()
+  // determine if game is over (current player does not have an available square)
+  // returns true if game is over, false otherwise
+  {
+    if (isRowsTurn) // row turn
+    {
+      for (int i=0; i < cells.length; i++) // search current row
+        if (cells[currentRow][i].isSelected() == false) // if some square can be picked
+          return false; // game is not over
+      return true; // all squares picked - game is over
+    }
+    else // similar for columns
+    {
+      for (int j=0; j < cells.length; j++)
+        if (cells[j][currentCol].isSelected() == false)
+          return false;
+      return true;
+    }
+  }
+  
+  public void setMessage(String mesg)
+  // change the message label
+  // mesg - String to display
+  {
+    messageLabel.setText(mesg);
+  }
+}
+
+
+import java.util.ArrayList;
+
+public class BoardNode {
+    private int num;
+    private boolean turn;
+    private int size;
+    private static ArrayList <int[]> children1 = new ArrayList<>();
+    private static ArrayList <int[]> allChildren = new ArrayList<>();
+
+
+
+    public BoardNode(int state, boolean RorC, int Size){
+        num = state;
+        turn = RorC;
+        size = Size;
+    }
+
+    public static ArrayList<int[]> makeNode(int state,boolean RorC, int Size){
+        int s=state;
+        if(RorC){
+            for(int q=0;q<Size;q++){
+                int[] pair = new int[2];
+                pair[0]=s;
+                pair[1]=q;
+                children1.add(pair);
+                
+            }
+            return children1;
+        }
+        else{
+            for(int q=0;q<Size;q++){
+                int[] pair = new int[2];
+                pair[0]=q;
+                pair[1]=s;
+                children1.add(pair);
+            }
+            return children1;
+        }
+    }
+    public static ArrayList<int[]> makeAllNodes(int size){
+        allChildren.clear();
+        for(int q = 0; q<size;q++){
+            for(int k = 0; k<size; k++){
+                int[] pair = new int[2];
+                pair[0]=q;
+                pair[1]=k;
+                allChildren.add(pair);
+            }
+        }
+        return allChildren;
+    }
+    public static ArrayList<int[]> getArray(){
+        return allChildren;
+    }
+
+
+
+}
+
+
+
+old board class
+//package takethatgui;
+
+/*
+ * Take That!
+ * by Scott Weiss
+ * 
+ * This class does most of the work. It displays the labels and grid buttons.
+ * It changes the grid state after each move.
+ * 
+ * It also manages the computer players. You will be rewriting the method
+ * makeComputerChoice so it intelligently picks a move based on the current game state.
+ * 
+ */
+import javax.swing.*;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Random;
+
+public class Board
+    extends JPanel {
+  private Player rowP; // the two players
+  private Player colP;
+  private boolean isRowsTurn; // whose turn is it
+  private int currentRow, currentCol; // row and column of last move
+  private JLabel[] colLabels; // the labels that indicate which column to play in
+  private JLabel[] rowLabels; // the labels to indicate the row to play in
+  private Cell[][] cells; // the grid of numbers
+  private JLabel messageLabel; // label for turn information, winner
+  private int sizeB;
+  private int move = 0;
+  private float maxValue;
+  private float minValue;
+  private boolean ABbool;
+  private int p1;
+  private int p2;
+  private int p1LS;
+  private int p2LS;
+  private float[] VM = new float[2];
+  private float[] VM2 = new float[2];
+  private Random rand = new Random();
+  private Board copyboard; 
+  private Board evalBoard;
+  private Board parentBoard;
+  public Board(int size, Player rp, Player cp, int min, int max, Random rand) {
+    // Constructor
+    // size is grid size (assume square)
+    sizeB=size;
+    // rp & cp are players
+    // min and max is range of possible numbers for a square
+    // rand is random number generator
+    rowP = rp; // remember player information
+    colP = cp;
+    int turn = rand.nextInt()%2;
+    isRowsTurn = turn == 0; // determine who moves first
+    rowLabels = new JLabel[size]; // make arrays of labels for row/column headings
+    colLabels = new JLabel[size];
+    cells = new Cell[size][size]; // make 2D array of Cells
+    this.setLayout(new GridLayout(size+2, size+1)); // set layout for Board
+    // one extra row to accommodate winner message
+    // extra row and column for labels
+    this.add(new JLabel("",JLabel.CENTER)); // blank label to line things up nicely
+    for (int i=0; i < size; i++) // add column headers across the top
+    {
+      colLabels[i] = new JLabel(""+i,JLabel.CENTER); // label with column number
+      colLabels[i].setForeground(Color.RED); // make it large and red
+      colLabels[i].setFont(new Font(null, Font.BOLD, 20));
+      colLabels[i].setVisible(false); // no numbers shown yet
+      this.add(colLabels[i]);
+    }
+    for (int i=0; i < size; i++)
+    {
+      // make label for row first
+      rowLabels[i] = new JLabel(""+i, JLabel.CENTER);
+      rowLabels[i].setForeground(Color.RED);
+      rowLabels[i].setFont(new Font(null, Font.BOLD, 20));
+      rowLabels[i].setVisible(false);
+      this.add(rowLabels[i]);
+      // then make cells in that row
+      for (int j=0; j < size; j++)
+      {
+        // create a new Cell object
+        Cell tempCell = new Cell(i,j,this, min, max, rand);
+        cells[i][j] = tempCell;
+        this.add(tempCell); // add to panel
+      }
+    }
+    if (isRowsTurn) // is it row player's turn to start?
+    {
+      // pick a random row
+      currentRow = rand.nextInt(size);
+      // make that row's label visible
+      rowLabels[currentRow].setVisible(true);
+    }
+    else // do similar for columns
+    {
+      currentCol = rand.nextInt(size);
+      colLabels[currentCol].setVisible(true);
+    }
+    // put text in the message label
+    messageLabel = new JLabel("Time to play Take That");
+    this.add(messageLabel);
+  }
+
+  
+  
+  public void nextTurn()
+  // This method sets up the next player's turn
+  {
+    if (!gameOver()) // if there are still turns to play
+    {
+      if (isRowsTurn) // tell appropriate player to take its turn
+        rowP.takeTurn();
+      else
+        colP.takeTurn();
+    }
+  }
+
+  public void makeComputerMove()
+  // This performs the move for the computer player
+  // After determining what the move should be, it executes that move on the board
+  {
+    if (isRowsTurn) // is it row player's turn?
+    {
+      // tell user the computer player is thinking
+       messageLabel.setText(rowP.getName()+" thinking");
+       // determine the player's move
+       int colChoice = makeComputerChoice(currentRow);
+       // attempt to make the move
+       if (makeMove(currentRow, colChoice, 
+           cells[currentRow][colChoice].getValue()))
+         cells[currentRow][colChoice].select(); // if legal move, change the grid
+    }
+    else // similar for column player
+    {
+       messageLabel.setText(colP.getName()+" thinking");
+       int rowChoice = makeComputerChoice(currentCol);
+       if (makeMove(rowChoice, currentCol, 
+           cells[rowChoice][currentCol].getValue()))
+         cells[rowChoice][currentCol].select();
+      
+    }
+    nextTurn(); // have the next player go
+  }
+  public Board board2(Board board){
+    Board board2Board = new Board(sizeB, rowP, colP, -25, 75, rand);
+    for(int i=0; i<sizeB;i++){
+      for(int j=0;j<sizeB;j++){
+        board2Board.cells[i][j].setValue(board.cells[i][j].getValue());
+        if(board.cells[i][j].isSelected()){
+          board2Board.cells[i][j].select();
+        }
+      }
+    }
+    return board2Board;
+  }
+  
+  public int makeComputerChoice(int RorC)
+  // This method determines the square the computer player will move to
+  // It returns the row or column of the move as appropriate
+  // You will replace this code - right now, it makes a random legal move in the 
+  // appropriate row or column
+  {
+    int depth = 0;
+    Board copyBoard = new Board(sizeB, rowP, colP, 1, 1, rand);//random values
+    ABbool=isRowsTurn; 
+    maxValue = Integer.MIN_VALUE;
+    minValue = Integer.MAX_VALUE;
+    ArrayList<int[]> Nodes = BoardNode.makeNode(RorC, isRowsTurn, sizeB);
+    ArrayList<int[]> aNodes = new ArrayList<>();
+    for(int[] pair:Nodes) {
+      boolean tf = cells[pair[0]][pair[1]].isSelected();
+      if(tf) {
+        continue;
+      }
+      else {
+        aNodes.add(pair);
+      }
+    }
+    copyboard = board2(copyBoard);// new board with the same values as the original board
+    evalBoard = board2(copyBoard);
+    float[] RVM = new float[2];
+    RVM = maxValue(Nodes, depth, Float.MIN_VALUE, Float.MAX_VALUE);
+    int move = Math.round(RVM[1]);
+    System.out.println(move);
+    return move;    
+  }
+  //Questions: do we generate new nodes everytime we pass to max/min value? what does the eval and teminal functions do? what perameters should the eval function take? 
+
+  public float[] maxValue(ArrayList<int[]> nodes, int depth, float alpha, float beta){
+    boolean terminal = isTerminal(nodes);
+    boolean cutoff = cutOff(depth);
+    int maxmove= 0;
+    if(terminal||cutoff){
+      depth+=1;
+      return eval();
+    }
+    for(int[] pair:nodes){
+      if(cells[pair[0]][1].isSelected()) {
+        continue;
+      }
+      p1LS = cells[pair[0]][pair[1]].getValue();
+      p1 +=p1LS;
+      float[] minR = minValue(results(pair), depth-1, alpha, beta);//when we pass node, it resets the for loop and is constantly at the first cell. never moves to a second or third. 
+      float value2 = minR[0];
+      if (value2>maxValue){
+        maxValue = value2;
+        VM[0]=maxValue;
+        if(ABbool){
+          maxmove=pair[1]; // equals 0 or whatever the column is i think
+          VM[1]=maxmove;
+          ABbool=!ABbool;
+        }
+        else{
+          maxmove=pair[0];  
+          VM[1]=maxmove;
+          ABbool=!ABbool;
+        }
+        alpha = Math.max(alpha,maxValue);
+      }
+      if(maxValue>=beta){
+        VM[0]=maxValue;
+        VM[1]=maxmove;
+        depth+=1;
+        return VM;
+      }
+
+    }
+    depth+=1;
+    return VM;
+  }
+
+
+  public float[] minValue(ArrayList<int[]> nodes, int depth, float alpha, float beta){
+    boolean terminal = isTerminal(nodes);
+    int minmove = 0;
+    boolean cutoff = cutOff(depth);
+    if(terminal||cutoff){
+      depth+=1;
+      return eval();
+    }
+    for(int[] pair1 : nodes){ // pair 1 gest stuck at 0, 3 or 3,0 depending on the turn
+      p2LS = cells[pair1[0]][pair1[1]].getValue();
+      p2 +=p2LS;
+      float[] maxR = maxValue(results(pair1), depth-1, alpha, beta);
+      float value2=maxR[0];
+        //int move2 = maxR[1];
+      if(value2<minValue){
+        minValue=value2;
+        VM2[0]=minValue;
+        if(ABbool){
+          minmove=pair1[1];
+          VM2[1]=minmove;
+          ABbool=!ABbool;
+        }
+        else{
+          minmove=pair1[0];
+          VM2[1]=minmove;
+          ABbool=!ABbool;
+        }
+        beta = Math.min(beta,minValue);
+
+      }
+      if(minValue<=alpha){
+        VM2[0]=minValue;
+        VM2[1]=minmove;
+        depth+=1;
+        return VM2;
+      }
+    }
+    
+    depth+=1;
+    return VM2;
+  }
+
+  public float[] eval(){
+    float[] pair = new float[2];
+    ArrayList<int[]> allNodes = BoardNode.makeAllNodes(sizeB);
+    ArrayList<int[]> sNodes = new ArrayList<>();
+    for(int pairs[]:allNodes){
+      if(evalBoard.cells[pairs[0]][pairs[1]].isSelected()){
+        sNodes.add(pairs);
+      }
+    }
+    float odds = p1 + p2; //THe first two features are player 1's score and player 2's score
+    float p1odds = (float)p1/odds;
+    int nodesLeft = (allNodes.size()) - (sNodes.size());//third feature is how many nodes are left in game.
+    if(nodesLeft==0){
+      pair[0]=p1odds;
+    }
+    else{
+      float idk = (float)nodesLeft/(allNodes.size());
+      float oddsOfW = p1odds*idk;
+      pair[0]=oddsOfW;
+    }
+    pair[1]=0;
+    if(ABbool){
+      p1-=p1LS;
+    }
+    else{
+      p2-=p2LS;
+    }
+    return pair;
+  }
+
+  public boolean isTerminal(ArrayList<int[]> nodes){
+    if(nodes.size()==0){
+      return true;
+    }else{
+      return false;
+    }
+  }
+
+  public boolean cutOff(int depth){
+    if(depth<-6){
+      return true;
+    }
+    else{
+      return false;
+    }
+  }
+
+  public ArrayList<int[]> results (int[] state){
+    Board childBoard = board2(evalBoard);
+    ABbool=!ABbool;
+    ArrayList<int[]> results=new ArrayList<>();
+    childBoard.cells[state[0]][state[1]].select();
+    if(ABbool){//see if ABbool is true
+      for(int q = 0; q<sizeB;q++){
+        int [] pair = new int[2];
+        pair[0]=state[0];
+        pair[1] = q;
+        boolean idk = evalBoard.cells[pair[0]][pair[1]].isSelected();
+        if(idk){
+          continue;
+        }
+        else{
+          results.add(pair);
+        }
+      }
+    }else{
+      for(int q = 0; q<sizeB;q++){
+        int [] pair = new int[2];
+        pair[0]=q;
+        pair[1] = state[1];
+        boolean idk = evalBoard.cells[pair[0]][pair[1]].isSelected();
+        if(idk){
+          continue;
+        }
+        else{
+          results.add(pair);
+        }
+    }
+  }
+  evalBoard = board2(childBoard);
+    return results;
+  }
+
+  public boolean makeMove(int row, int col, int val)
+  // Execute move made by player
+  // row, col - coordinates of selected square
+  // val - number in the square
+  // returns true if move is legal, false otherwise
+  {
+    if (isRowsTurn && row==currentRow) // if row's turn and square is in current row
+    {
+      rowP.addToScore(val); // update player's score
+      rowLabels[currentRow].setVisible(false); // hide previous visible label
+      currentCol = col; // update column to that of selected square
+      colLabels[currentCol].setForeground(Color.RED); // display header for selected column
+      colLabels[currentCol].setVisible(true);
+      isRowsTurn = false; // switch to column player's turn
+      cells[row][col].select(); // select given square
+      if (gameOver()) // if the game is over
+      {
+        add(new JLabel(rowP.getWinner(colP))); // announce the winner
+      }
+      return true;
+    }
+    else if (!isRowsTurn && col==currentCol) // do analogous things for columns
+    {
+      colP.addToScore(val);
+      colLabels[currentCol].setVisible(false);
+      currentRow = row;
+      rowLabels[currentRow].setForeground(Color.RED);
+      rowLabels[currentRow].setVisible(true);
+      isRowsTurn = true;
+      cells[row][col].select();
+      if (gameOver())
+        add(new JLabel(rowP.getWinner(colP)));
+      return true;
+    }
+    else
+      return false;
+  }
+  public boolean gameOver()
+  // determine if game is over (current player does not have an available square)
+  // returns true if game is over, false otherwise
+  {
+    if (isRowsTurn) // row turn
+    {
+      for (int i=0; i < cells.length; i++) // search current row
+        if (cells[currentRow][i].isSelected() == false) // if some square can be picked
+          return false; // game is not over
+      return true; // all squares picked - game is over
+    }
+    else // similar for columns
+    {
+      for (int j=0; j < cells.length; j++)
+        if (cells[j][currentCol].isSelected() == false)
+          return false;
+      return true;
+    }
+  }
+  
+  public void setMessage(String mesg)
+  // change the message label
+  // mesg - String to display
+  {
+    messageLabel.setText(mesg);
+  }
+}
